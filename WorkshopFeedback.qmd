@@ -1,0 +1,178 @@
+---
+title: "Feedback report on XX workshop" 
+format: docx
+editor: visual
+---
+
+```{r}
+#| echo: false
+#| include: false
+
+library(stringr)
+library(tidyverse)
+
+```
+
+## Descriptive statistics
+
+```{r}
+#| echo: false
+data <- read.csv("./template_workshop_feedback_form.csv", header = TRUE)
+data <- data[data$ended != "",]
+registration <- 25
+LMUregistration <- 20
+Attendees <- 23
+```
+
+We received `r registration` registrations (`r round(LMUregistration/registration*100,0)` % of which LMU members). `r Attendees` attended (`r round(Attendees/registration*100,0)` % of registrants).
+
+Total number of respondents in this feedback survey: **`r nrow(data)`** (`r round(nrow(data)/Attendees*100)`% of attendees)
+
+## Session rating
+
+The session was rated from 0 ('I do not recommend it') to 5 ('I fully recommend it'). On average, the session was rated `r round(mean(data$ratinga, na.rm=TRUE),2)` (min = `r min(data$ratinga, na.rm=TRUE)`, max = `r max(data$ratinga, na.rm=TRUE)`, **median =** **`r median(data$ratinga, na.rm= TRUE)`**).
+
+## Pre and post confidence in ability
+
+We asked their level of confidence in their ability to adopt the skill XX before and after the workshop.
+
+```{r}
+#| echo: false
+
+  # Convert "na" strings to NA if needed
+  data$prior[data$prior == "na"] <- NA
+  data$post[data$post == "na"]   <- NA
+  
+  # Reshape to long format
+  data_long <- data %>%
+    pivot_longer(cols = c(prior, post),
+                 names_to = "time",
+                 values_to = "confidence") %>%
+    mutate(
+      time = factor(recode(time, prior = "Before", post = "After"),
+                    levels = c("Before", "After")),
+      confidence = as.numeric(confidence),
+      confidence_jittered = confidence + runif(n(), -0.1, 0.1)
+    )
+  
+  # Plot
+  ggplot(data_long, aes(x = time, y = confidence_jittered, group = iteration)) +
+    geom_line(alpha = 0.4, color = "gray60", na.rm = TRUE) +
+    geom_point(alpha = 0.7, color = "gray40", na.rm = TRUE) +
+    stat_summary(aes(y = confidence, group = 1),
+                 fun = mean, geom = "line", color = "blue", linewidth = 1.5, na.rm = TRUE) +
+    stat_summary(aes(y = confidence, group = 1),
+                 fun = mean, geom = "point", color = "blue", size = 3, na.rm = TRUE) +
+    scale_y_continuous(
+      breaks = 0:3,
+      labels = c("Not confident at all",
+                 "Mostly not confident",
+                 "Somewhat confident",
+                 "Very confident"),
+      limits = c(0, 3)
+    ) +
+    labs(
+      x = "",
+      y = "",
+      title = paste("Confidence in XX")
+    ) +
+    theme_minimal(base_size = 14) +
+  theme(
+      plot.title = element_text(size = 11, face = "bold", hjust = 0.5) # 
+    )
+
+
+```
+
+## Suitability of the workshops format for the content to be delivered
+
+We asked: "Do you think the training methods applied in the workshop, e.g. workshop format or exercises, were appropriate for the respective workshop content?".
+
+```{r}
+#| echo: false
+
+N <- c(
+table(data$appropriate)['0'],
+table(data$appropriate)['1'],
+table(data$appropriate)['2'],
+table(data$appropriate)['3'],
+table(data$appropriate)['na'])
+
+N[is.na(N)] <- 0
+
+Answer <- c("Not appropriate at all",
+"Somewhat inappropriate",
+"Somewhat appropriate",
+"Very appropriate",
+"Unsure/not applicable")
+
+summary_appropriate <- cbind(Answer, N
+                          )
+
+colnames(summary_appropriate)[1] <- "Were the training method appropriate for the workshop content?"
+rownames(summary_appropriate) <- NULL
+knitr::kable(summary_appropriate)
+
+```
+
+Comments associated to this question were:
+
+```{r echo = FALSE}
+data$inappropriate[data$inappropriate != '']
+
+```
+
+## Level of the workshop
+
+```{r}
+#| echo = FALSE
+
+levels <- data[,startsWith(colnames(data), "level")]
+
+levels[levels == ''] <- NA
+levels[levels == 'muchdifficult'] <- 1
+levels[levels == 'difficult'] <- 2
+levels[levels == 'right'] <- 3
+levels[levels == 'easy'] <- 4
+levels[levels == 'mucheasy'] <- 5
+
+prior <- data[,startsWith(colnames(data), "prior")]
+prior[prior == 'na'] <- NA
+
+prior_levels_long <- data.frame(cbind(levels = unlist(levels), prior = unlist(prior)))
+prior_levels_wide <- cbind(levels, prior)
+```
+
+The workshop was targeted at novices in XX. It welcomed early career researchers from various disciplines and diverse prior knowledge.
+
+Overall, we expect participants with increasing prior knowledge to find our training material increasingly easy as it is primarily targeted at novices.
+
+```{r}
+#| echo = FALSE
+par(mar=c(4,10,1,1)+.1)
+sunflowerplot (prior_levels_long$levels ~ prior_levels_long$prior, ylim = c(1,5), xlim = c(0,3), xaxt = "n", yaxt = "n" ,  xlab = "Prior knowledge" , ylab ="")
+axis(1, at = 0:3, labels = c('none', 'basic', 'advanced', 'expert'))
+axis(2, at = 1:5, labels = c('much too difficult', 'slightly too difficult', 'about right', 'slightly too easy','much too easy'),las=1 )      
+title(ylab = "Level of the workshop", line = 9)   
+
+```
+
+## Highlights
+
+```{r echo = FALSE}
+data$highlight[data$highlight != ""]
+```
+
+## Suggestions for improvements
+
+```{r echo = FALSE}
+data$suggestions[data$suggestions != ""]
+```
+
+## Comments
+
+```{r echo = FALSE}
+data$suggestions[data$comments != ""]
+```
+
+## Conclusions
